@@ -1,38 +1,34 @@
 import PropTypes from 'prop-types';
-import { Component } from 'react';
+import { useEffect } from 'react';
 import { BoxModal, ModalWindowBox } from './Modal.styled';
 
-export class Modal extends Component {
-  static propTypes = {
-    modalClose: PropTypes.func,
-    children: PropTypes.node,
-  };
+export function Modal({ children, modalClose }) {
+  useEffect(() => {
+    const closeModalEsc = e => {
+      if (e.code === 'Escape') {
+        modalClose();
+      }
+    };
 
-  componentDidMount() {
-    window.addEventListener('keydown', this.handleKeyDown);
-  }
+    window.addEventListener('keydown', closeModalEsc);
+    return () => {
+      window.removeEventListener('keydown', closeModalEsc);
+    };
+  }, [modalClose]);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleKeyDown);
-  }
-
-  handleKeyDown = e => {
-    if (e.code === 'Escape') {
-      this.props.modalClose();
-    }
-  };
-
-  handleBackdropClick = e => {
+  const closeModalBackdropClick = e => {
     if (e.target.id === 'backdrop') {
-      this.props.modalClose();
+      modalClose();
     }
   };
 
-  render() {
-    return (
-      <BoxModal id={'backdrop'} onClick={this.handleBackdropClick}>
-        <ModalWindowBox>{this.props.children}</ModalWindowBox>
-      </BoxModal>
-    );
-  }
+  return (
+    <BoxModal id={'backdrop'} onClick={closeModalBackdropClick}>
+      <ModalWindowBox>{children}</ModalWindowBox>
+    </BoxModal>
+  );
 }
+
+Modal.propTypes = {
+  children: PropTypes.node,
+};
