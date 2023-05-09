@@ -1,4 +1,3 @@
-import { Component } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Searchbar } from './Searchbar/Searchbar';
@@ -8,125 +7,87 @@ import { Button } from './Button/Button';
 import { Modal } from './Modal/Modal';
 import { getImages } from 'apiService/apiService';
 import { AppDiv } from './App.styled';
+import { useState, useEffect } from 'react';
 
-export class App extends Component {
-  state = {
-    searchInputValue: '',
-    foundSearch: '',
-    images: [],
-    page: 1,
-    totalPages: 1,
-    loader: false,
-    loadMoreButton: false,
-    showModal: false,
-    modalImgSrc: '',
-  };
+export const App = () => {
+  const [searchInputValue, setSearchInputValue] = useState('');
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [loader, setLoader] = useState(false);
+  const [loadMoreButton, setLoadMoreButton] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalImgSrc, setModalImgSrc] = useState('');
 
-  async componentDidUpdate(_, prevState) {
-    if (
-      prevState.foundSearch !== this.state.foundSearch ||
-      prevState.page !== this.state.page
-    ) {
-      this.setState({ loader: true });
-
+  useEffect(() => {
+    if (searchInputValue === '') {
+      return;
+    }
+    setLoader(true);
+    const searchImg = async () => {
       try {
-        const response = await getImages(
-          this.state.searchInputValue,
-          this.state.page
-        );
+        const response = await getImages(searchInputValue, page);
 
         if (response.images.length === 0) {
-          toast.error(`These are no "${this.state.foundSearch}" images`);
+          toast.error(`These are no images`);
           return;
         }
 
-        if (this.state.page === 1) {
+        if (page === 1) {
           toast.success(`We found ${response.totalHits} images`);
         }
 
-        this.setState(prevState => ({
-          images: [...prevState.images, ...response.images],
-          loadMoreButton: this.state.page < Math.ceil(response.totalHits / 12),
-        }));
+        setImages(prevState => [...prevState, ...response.images]);
+        setLoadMoreButton(page < Math.ceil(response.totalHits / 12));
       } catch (error) {
         toast.error(error.message);
       } finally {
-        this.setState({ loader: false });
+        setLoader(false);
       }
-    }
-  }
+    };
+    searchImg();
+  }, [searchInputValue, page]);
 
-  handleSearchInput = e => {
-    this.setState({ searchInputValue: e.currentTarget.value.toLowerCase() });
+  const onReset = () => {
+    setPage(1);
+    setImages([]);
+    setLoadMoreButton(false);
   };
 
-  handleSearchSubmit = e => {
-    const { searchInputValue, foundSearch } = this.state;
-    e.preventDefault();
-    window.scrollTo(0, 0);
-    if (searchInputValue.trim() === '') {
-      toast.error(`Search request shouldn't be empty`);
-      return;
-    }
-    if (searchInputValue !== foundSearch) {
-      this.setState({
-        page: 1,
-        images: [],
-        foundSearch: searchInputValue,
-        loadMoreButton: false,
-      });
-    }
+  const handleSearchInput = e => {
+    setSearchInputValue(e);
   };
 
-  loadMore = () => {
-    this.setState(prevState => {
-      return { page: prevState.page + 1 };
-    });
+  const loadMore = () => {
+    setPage(prev => prev + 1);
   };
 
-  modalOpen = e => {
+  const modalOpen = e => {
     if (e.target.nodeName === 'IMG') {
-      this.setState({
-        showModal: true,
-        modalImgSrc: e.target.getAttribute('data-modal'),
-      });
+      setShowModal(true);
+      setModalImgSrc(e.target.getAttribute('data-modal'));
     }
   };
 
-  modalClose = () => {
-    this.setState({ showModal: false, modalImgSrc: '' });
+  const modalClose = () => {
+    setShowModal(false);
+    setModalImgSrc('');
   };
 
-  render() {
-    const {
-      searchInputValue,
-      images,
-      loader,
-      loadMoreButton,
-      showModal,
-      modalImgSrc,
-      modalImgAlt,
-    } = this.state;
-    return (
-      <AppDiv>
-        <Searchbar
-          search={searchInputValue}
-          onChange={this.handleSearchInput}
-          onSubmit={this.handleSearchSubmit}
+  return (
+    <AppDiv>
+      <Searchbar onReset={onReset} handleSearchSubmit={handleSearchInput} />
+      {images.length !== 0 && (
+        <ImageGallery images={images} modalOpen={modalOpen} />
+      )}
+      {loader === true && <Loader />}
+      {!loader && loadMoreButton && <Button onClick={loadMore} />}
+      {showModal && (
+        <Modal
+          modalClose={modalClose}
+          children={<img src={modalImgSrc} alt="" />}
         />
-        {images.length !== 0 && (
-          <ImageGallery images={images} modalOpen={this.modalOpen} />
-        )}
-        {loader === true && <Loader />}
-        {!loader && loadMoreButton && <Button onClick={this.loadMore} />}
-        {showModal && (
-          <Modal
-            modalClose={this.modalClose}
-            children={<img src={modalImgSrc} alt={modalImgAlt} />}
-          />
-        )}
-        <ToastContainer autoClose={2500} />
-      </AppDiv>
-    );
-  }
-}
+      )}
+      <ToastContainer autoClose={2500} />
+    </AppDiv>
+  );
+};
